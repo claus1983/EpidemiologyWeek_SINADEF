@@ -1,0 +1,101 @@
+library(readr)
+library(janitor)
+library(dplyr)
+library(lubridate)
+library(stringr)
+library(ggplot2)
+library(purrr)
+
+# Leer----
+
+fallecidos_sinadef <- read_delim("fallecidos_sinadef.csv", 
+                                 ";", escape_double = FALSE, locale = locale(encoding = "ISO-8859-1", 
+                                                                             asciify = TRUE), trim_ws = TRUE, 
+                                 skip = 2)
+
+clean_names(fallecidos_sinadef)
+
+glimpse(fallecidos_sinadef)
+#===============================================================================
+# filtro por region/provincia y distrito de interes
+#===============================================================================
+data_lima <- fallecidos_sinadef %>% 
+  filter(grepl("LIMA", `PROVINCIA DOMICILIO`))
+
+data_callao <- fallecidos_sinadef %>% 
+  filter(grepl("CALLAO", `PROVINCIA DOMICILIO`))
+
+data_arequipa <- fallecidos_sinadef %>% 
+  filter(grepl("AREQUIPA", `PROVINCIA DOMICILIO`))
+
+data_interes <- rbind(data_lima, data_callao, data_arequipa)
+
+#-------------------------------------------------------------------------------
+# FILTRO POR FECHA
+data_interes <- data_interes %>% 
+  mutate(
+    anio_fallecido = year(FECHA),
+    mes_fallecido = month(FECHA),
+    dia_fallecido = day(FECHA),
+    mes_fallecido = str_pad(mes_fallecido, 2, "left", "0"),
+    aniomes = paste(anio_fallecido, mes_fallecido, dia_fallecido),
+  ) 
+
+#revisar correr data
+
+data_feb21 <- data_interes  %>% 
+  filter(anio_fallecido >= 2021 & mes_fallecido == "02" & dia_fallecido >= 08)
+
+data_mar21 <- data_interes %>% 
+  filter(anio_fallecido >= 2021 & mes_fallecido == "03")
+
+data_abr21 <- data_interes %>% 
+  filter(anio_fallecido >= 2021 & mes_fallecido == "04")
+
+data_may21 <- data_interes %>% 
+  filter(anio_fallecido >= 2021 & mes_fallecido == "05")
+
+data_jun21 <- data_interes %>% 
+  filter(anio_fallecido >= 2021 & mes_fallecido == "06")
+
+
+data_interes <- rbind(data_feb21, data_mar21, data_abr21, data_may21, data_jun21)
+
+glimpse(data_interes)
+
+str(data_interes$FECHA)
+
+### Select
+
+df <- data_interes %>% 
+  select(FECHA, `PROVINCIA DOMICILIO`, `DISTRITO DOMICILIO`)
+
+
+# cambiar de fecha de base de datos a dia del anio
+
+df$dia <- strftime(df$FECHA, format = "%j") %>% 
+  as.numeric(df$dia)
+
+str(df$dia)
+
+
+# Calculo aritmetico para implementatar a semana epidemiologica
+
+df$WeekEpi <- as.integer(((df$dia-4)/7)-4)
+
+##
+
+
+d1 <- df %>% 
+  select(FECHA, `PROVINCIA DOMICILIO`, `DISTRITO DOMICILIO`, WeekEpi)
+
+dfx <- d1 %>% 
+  group_by(FECHA, `PROVINCIA DOMICILIO`, `DISTRITO DOMICILIO`, WeekEpi) %>% 
+  count()  
+
+
+######
+
+
+
+
